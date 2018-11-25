@@ -19,8 +19,11 @@ Pivotal Cloud Foundry では、簡単な手順でアプリケーションイン�
 
 <details><summary>編集済みソースコード</summary>
 
-```java
-
+```
+@GetMapping("/")
+String hello() {
+    return greeter.hello() + " (" + System.getenv("CF_INSTANCE_INDEX") + ")" + " on " + System.getenv("CF_INSTANCE_IP");
+}
 ```
 </details>
 
