@@ -246,7 +246,103 @@ $ cf logs hello-pcf-redis --recent
 ```
 </details>
 
+`APP/PROC/WEB/0` と `APP/PROC/WEB/1` というように、
+アプリケーションインスタンス 1 と 2 用にログ出力が変わっている事が確認できます。
 
+#### ブラウザからのアプリケーションアクセスの確認
+繰り返しアクセスする事で異なるインスタンスにアクセスしている事が確認できます。
+
+1つ目のインスタンス
+
+![instance-1](images/app-instance-1.png)
+
+2つ目のインスタンス
+
+![instance-2](images/app-instance-2.png)
+
+### アプリケーションインスタンスの障害時動作
+Pivotal Cloud Foundry では、指定したインスタンス数を保つように動作します。
+そのため、インスタンス障害によりダウンした場合、自動で新しくインスタンスを起動してインスタンス数を保ちます。
+
+ここでは、意図的にインスタンスをシャットダウンし、インスタンス障害を想定した事象を発生させてみます。
+
+
+#### シャットダウンの準備
+Spring Actuator の機能で Spring Boot アプリケーションをシャットダウンができるように以下の環境変数を設定します。
+
+- `management.endpoints.web.exposure.include=shutdown`
+- `management.endpoint.shutdown.enabled=true`
+
+環境変数を設定するため、以下のコマンドを使用します。
+
+```
+$ cf set-env hello-pcf-redis management.endpoints.web.exposure.include shutdown
+$ cf set-env hello-pcf-redis management.endpoint.shutdown.enabled true
+```
+
+環境変数を反映するため、アプリケーションを再起動します。
+
+```
+$ cf restart hello-pcf-redis
+```
+
+#### アプリケーションのシャットダウン
+cURL でシャットダウンを行います。
+以下のコマンドを使用します。
+
+```
+$ curl -X POST https://<アプリケーションURL>/actuator/shutdown --insecure
+```
+
+<details><summary>実行結果</summary>
+
+```
+$ curl -X POST https://hello-pcf-redis-quiet-gerenuk.cfapps.io/actuator/shutdown --insecure
+
+{"message":"Shutting down, bye..."}
+```
+</details>
+
+#### シャットダウン時の挙動
+シャットダウンをした直後にアプリケーションの状態を確認してみます。
+
+アプリケーションの状態の確認は、以下のコマンドを使用します。
+
+```
+$ cf app <アプリケーション名>
+```
+
+<details><summary>実行結果</summary>
+
+```
+$ cf app hello-pcf-redis
+
+syanagihara@pivotal.io として組織 syanagihara-org / スペース development 内のアプリ hello-pcf-redis の正常性と状況を表示しています...
+
+名前:                   hello-pcf-redis
+要求された状態:         started
+インスタンス:           2/2
+使用:                   768M x 2 instances
+routes:                 hello-pcf-redis-quiet-gerenuk.cfapps.io
+最終アップロード日時:   Sun 25 Nov 14:47:22 JST 2018
+スタック:               cflinuxfs2
+ビルドパック:           client-certificate-mapper=1.8.0_RELEASE container-security-provider=1.16.0_RELEASE
+                        java-buildpack=v4.16.1-offline-https://github.com/cloudfoundry/java-buildpack.git#41b8ff8 java-main java-opts java-security
+                        jvmkill-agent=1.16.0_RELEASE open-jd...
+
+     状態     開始日時               CPU    メモリー         ディスク       詳細
+#0   開始中   2018-11-25T06:25:11Z   9.4%   9.8M of 768M     150.5M of 1G
+#1   実行     2018-11-25T06:22:01Z   0.5%   163.4M of 768M   150.5M of 1G
+```
+
+```
+     状態   開始日時               CPU    メモリー         ディスク       詳細
+#0   実行   2018-11-25T06:25:34Z   0.4%   178.3M of 768M   150.5M of 1G
+#1   実行   2018-11-25T06:22:01Z   0.4%   163.4M of 768M   150.5M of 1G
+```
+</details>
+
+インスタンス数が 1つになっても、自動で 2つになるように開始している事が確認できます。
 
 ## まとめ / 振り返り
 
